@@ -1,4 +1,4 @@
-"""HFP (orthonormal DCT), PFA and SCSU, mounted exactly as in the candidate experiment."""
+"""SDGW + EFC + DCT-HFP, matching combo__sdgw__efc__hfp slot placement."""
 import copy,math
 from pathlib import Path
 import torch
@@ -8,8 +8,8 @@ from ultralytics.nn.tasks import DetectionModel
 from ultralytics.utils.loss import v8DetectionLoss
 from ultralytics.utils.tal import make_anchors
 from .config import ARCHITECTURE
-from .pfa import PFADWT
-from .scsu import SpatialChannelSelection
+from .sdgw import SDGW
+from .efc import EFC
 
 def fp32_context(x):return torch.autocast(device_type=x.device.type,enabled=False)
 
@@ -68,37 +68,32 @@ def route(new,old):
     new.type=type(new).__module__+'.'+type(new).__name__
     new.np=sum(p.numel() for p in new.parameters());return new
 
-class HFPNeckWrap(nn.Module):
-    def __init__(self,original,channels,seed):
+class Residual(nn.Module):
+    def __init__(self,original,name,channels):
         super().__init__();self.orig=original
-        with torch.random.fork_rng(devices=[]):
-            torch.random.default_generator.manual_seed(seed);self.hfp=HFP(channels)
-        self.gamma_hfp=nn.Parameter(torch.zeros(()));route(self,original)
+        self.module=SDGW(channels) if name=='sdgw' else HFP(channels)
+        self.gamma=nn.Parameter(torch.zeros(()));route(self,original)
     def forward(self,x):
-        result=self.orig(x);return result+self.gamma_hfp*self.hfp(result)
+        base=self.orig(x)
+        with fp32_context(base):extra=self.module(base.float())
+        if extra.shape!=base.shape:raise ValueError('Single-slot shape changed')
+        return base+self.gamma*extra.to(base.dtype)
 
-class Enhancements(nn.Module):
-    def __init__(self):
-        super().__init__();self.layers=nn.ModuleList();self.gates=nn.ParameterList()
-        for name in ('pfa','scsu'):
-            with torch.random.fork_rng(devices=[]):
-                torch.random.default_generator.manual_seed(21000+sum((i+1)*ord(v) for i,v in enumerate(name)))
-                self.layers.append(PFADWT(64) if name=='pfa' else SpatialChannelSelection(64,k1=3,k2=5,bias=False))
-            self.gates.append(nn.Parameter(torch.zeros(())))
+class PairModule(nn.Module):
+    def __init__(self,channels):
+        super().__init__();self.name='efc';self.module=EFC(channels,channels)
+    def forward(self,rgb,tir):return self.module([rgb,tir])
+
+class Fusion(nn.Module):
+    is_cross_modal_fusion=True
+    def __init__(self,original,channels):
+        super().__init__();self.module=PairModule(channels)
+        self.gamma=nn.Parameter(torch.zeros(()));route(self,original)
     def forward(self,x):
-        for i,(layer,gate) in enumerate(zip(self.layers,self.gates)):
-            dtype=x.dtype
-            with fp32_context(x):
-                out=layer(x.float());residual=out-x.float() if i==0 else out
-                x=x+gate*residual.to(dtype)
-        return x
-
-class P3Wrap(nn.Module):
-    def __init__(self,original):
-        super().__init__();self.orig=original.orig;self.hfp=original.hfp;self.gamma_hfp=original.gamma_hfp
-        self.extra=Enhancements();route(self,original);self.f=[original.f,28]
-    def forward(self,inputs):
-        x,_=inputs;x=self.extra(self.orig(x));return x+self.gamma_hfp*self.hfp(x)
+        rgb,tir=x[2],x[3];base=rgb+tir
+        with fp32_context(base):extra=self.module(rgb.float(),tir.float())
+        if extra.shape!=base.shape:raise ValueError('Fusion shape changed')
+        return base+self.gamma*extra.to(base.dtype)
 
 class FP32Assigner(nn.Module):
     def __init__(self,original,owner):super().__init__();self.original=original;self.owner=owner
@@ -128,15 +123,27 @@ class ReproModel(DetectionModel):
         if hasattr(self,'criterion'):del self.criterion
         return super()._apply(fn)
 
+SPEC={'G1':'sdgw','G2':'efc','G3':'hfp'}
+
 def inject(model):
-    if model.yaml.get('hfss_net'):return model
+    if model.yaml.get('release_combination'):
+        assert model.yaml['release_combination']==SPEC;return model
     assert len(model.model)==40 and tuple(model.model[-1].f)==(32,35,38,31)
     for index in (23,24,25):model.model[index]=route(AddFusion(),model.model[index])
-    for index,ch in ((32,64),(35,128)):model.model[index]=HFPNeckWrap(model.model[index],ch,2000+index)
-    model.model[32]=P3Wrap(model.model[32])
+    positions={
+        'sdgw':[(9,64),(11,64),(14,128),(16,128),(20,256),(22,256)],
+        'efc':[(23,64),(24,128),(25,256)],
+        'hfp':[(32,64),(35,128),(38,256)],
+    }
+    for name,slots in positions.items():
+        for index,channels in slots:
+            with torch.random.fork_rng(devices=[]):
+                torch.manual_seed(100000+index*100+sum((k+1)*ord(v) for k,v in enumerate(name)))
+                old=model.model[index]
+                model.model[index]=Fusion(old,channels) if name=='efc' else Residual(old,name,channels)
     model.model[-1].segmentation_head=ZeroSegmentationHead(model.model[-1].num_seg_classes)
-    model.save=sorted(set(model.save)|{23,28,30});model.cmbm_enabled=False
-    model.yaml=copy.deepcopy(model.yaml);model.yaml['hfss_net']=True
+    model.cmbm_enabled=False;model.yaml=copy.deepcopy(model.yaml)
+    model.yaml.update(release_combination=copy.deepcopy(SPEC),paper_mode=True)
     model.__class__=ReproModel
     if hasattr(model,'criterion'):del model.criterion
     return model

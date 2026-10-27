@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "hfss-net-reproduction"
-version = "0.1.0"
-description = "HFSS-Net: High-Frequency Perception and Spatial Selection for RGB-T Object Detection"
+version = "0.2.0"
+description = "RGB-T Object Detection with SDGW, EFC and DCT-HFP"
 readme = "README.md"
 requires-python = ">=3.11,<3.13"
 dependencies = [
