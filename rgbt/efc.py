@@ -91,4 +91,3 @@ class EFC(nn.Module):
         xL = xL + x_gui
 
         return xL
-
