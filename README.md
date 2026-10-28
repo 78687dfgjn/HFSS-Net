@@ -22,7 +22,7 @@
 
 ## 1. 环境安装
 
-实验环境：Linux、单张 NVIDIA A30 24GB、Python 3.11.13、PyTorch 2.5.0+cu118、torchvision 0.20.0+cu118、CUDA运行时11.8、OpenCV 4.10.0、NumPy 2.1.2。依赖版本见 `pyproject.toml`。
+实验环境：Linux、单张 NVIDIA A30 24GB、Python 3.11.13、PyTorch 2.5.0+cu118、torchvision 0.20.0+cu118、CUDA运行时11.8、OpenCV 4.10.0、NumPy 2.1.2。依赖版本见 `pyproject.toml`。集群 `torch` 环境的全部104项包版本见 [environment-pip-list.txt](environment-pip-list.txt)，于2026-10-28执行 `python -m pip list --format=freeze --disable-pip-version-check` 原样导出；该文件是完整环境快照，项目安装依赖仍以 `pyproject.toml` 为准。
 
 ```bash
 conda create -n hfss-net python=3.11.13 -y
