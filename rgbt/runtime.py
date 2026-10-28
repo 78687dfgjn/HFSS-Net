@@ -1,4 +1,3 @@
-"""Reproduction trainer: exact square validation, FP32 assignment, dual checkpoints."""
 import copy
 import hashlib
 import io
@@ -94,7 +93,7 @@ class ReproTrainer(DetectionTrainer):
         if self.best_fitness is None or fitness>self.best_fitness:self.best_fitness=fitness
         rounded.update(raw);rounded.pop('fitness',None)
         return rounded,fitness
-    def save_model(self):pass  # Serialize after all epoch callbacks, before the next RNG draw.
+    def save_model(self):pass
     def persist(self):
         score=float(self.metrics['metrics/mAP50(B)']);epoch=self.epoch+1
         map_improved=not getattr(self,'best_map50',None) or score>self.best_map50['map50']
@@ -114,7 +113,7 @@ class ReproTrainer(DetectionTrainer):
             best_map50=self.best_map50,best_fitness_record=self.best_fitness_record,lr=[g['lr'] for g in self.optimizer.param_groups],format='sdgw-efc-hfp-v1')
         buffer=io.BytesIO();torch.save(checkpoint,buffer);atomic_bytes(self.last,buffer.getvalue())
         write_json(self.wdir/'best_map50.json',self.best_map50);write_json(self.wdir/'best_fitness.json',self.best_fitness_record)
-    def final_eval(self):pass  # CLI explicitly reloads both choices and evaluates in FP32.
+    def final_eval(self):pass
 
 def evaluate(weights,data,device,output,conf,iou,workers=4,split='val',batch=32):
     validator=ReproValidator(args=dict(data=str(data),split=split,device=device,imgsz=640,rect=False,batch=batch,

@@ -1,4 +1,3 @@
-# Detection-only adapter; Ultralytics-derived, AGPL-3.0.
 from ultralytics.engine.model import Model
 from ultralytics.nn.tasks import DetectionModel
 from .detect import DetectionTrainer,DetectionValidator,DetectionPredictor

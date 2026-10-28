@@ -1,5 +1,3 @@
-# Ultralytics YOLO 🚀, AGPL-3.0 license
-
 import math
 import os
 import random
@@ -31,7 +29,7 @@ try:
 except ImportError:
     thop = None
 
-# Version checks (all default to version>=min_version)
+
 TORCH_1_9 = check_version(torch.__version__, "1.9.0")
 TORCH_1_13 = check_version(torch.__version__, "1.13.0")
 TORCH_2_0 = check_version(torch.__version__, "2.0.0")
@@ -42,7 +40,7 @@ TORCHVISION_0_13 = check_version(TORCHVISION_VERSION, "0.13.0")
 
 @contextmanager
 def torch_distributed_zero_first(local_rank: int):
-    """Decorator to make all processes in distributed training wait for each local_master to do something."""
+
     initialized = torch.distributed.is_available() and torch.distributed.is_initialized()
     if initialized and local_rank not in {-1, 0}:
         dist.barrier(device_ids=[local_rank])
@@ -52,12 +50,12 @@ def torch_distributed_zero_first(local_rank: int):
 
 
 def smart_inference_mode():
-    """Applies torch.inference_mode() decorator if torch>=1.9.0 else torch.no_grad() decorator."""
+
 
     def decorate(fn):
-        """Applies appropriate torch decorator for inference mode based on torch version."""
+
         if TORCH_1_9 and torch.is_inference_mode_enabled():
-            return fn  # already in inference_mode, act as a pass-through
+            return fn
         else:
             return (torch.inference_mode if TORCH_1_9 else torch.no_grad)()(fn)
 
@@ -65,48 +63,48 @@ def smart_inference_mode():
 
 
 def get_cpu_info():
-    """Return a string with system CPU information, i.e. 'Apple M2'."""
-    import cpuinfo  # pip install py-cpuinfo
 
-    k = "brand_raw", "hardware_raw", "arch_string_raw"  # info keys sorted by preference (not all keys always available)
-    info = cpuinfo.get_cpu_info()  # info dict
+    import cpuinfo
+
+    k = "brand_raw", "hardware_raw", "arch_string_raw"
+    info = cpuinfo.get_cpu_info()
     string = info.get(k[0] if k[0] in info else k[1] if k[1] in info else k[2], "unknown")
     return string.replace("(R)", "").replace("CPU ", "").replace("@ ", "")
 
 
 def select_device(device="", batch=0, newline=False, verbose=True):
-    """
-    Selects the appropriate PyTorch device based on the provided arguments.
 
-    The function takes a string specifying the device or a torch.device object and returns a torch.device object
-    representing the selected device. The function also validates the number of available devices and raises an
-    exception if the requested device(s) are not available.
 
-    Args:
-        device (str | torch.device, optional): Device string or torch.device object.
-            Options are 'None', 'cpu', or 'cuda', or '0' or '0,1,2,3'. Defaults to an empty string, which auto-selects
-            the first available GPU, or CPU if no GPU is available.
-        batch (int, optional): Batch size being used in your model. Defaults to 0.
-        newline (bool, optional): If True, adds a newline at the end of the log string. Defaults to False.
-        verbose (bool, optional): If True, logs the device information. Defaults to True.
 
-    Returns:
-        (torch.device): Selected device.
 
-    Raises:
-        ValueError: If the specified device is not available or if the batch size is not a multiple of the number of
-            devices when using multiple GPUs.
 
-    Examples:
-        >>> select_device('cuda:0')
-        device(type='cuda', index=0)
 
-        >>> select_device('cpu')
-        device(type='cpu')
 
-    Note:
-        Sets the 'CUDA_VISIBLE_DEVICES' environment variable for specifying which GPUs to use.
-    """
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
     if isinstance(device, torch.device):
         return device
@@ -114,12 +112,12 @@ def select_device(device="", batch=0, newline=False, verbose=True):
     s = f"Ultralytics YOLOv{__version__} 🚀 Python-{PYTHON_VERSION} torch-{torch.__version__} "
     device = str(device).lower()
     for remove in "cuda:", "none", "(", ")", "[", "]", "'", " ":
-        device = device.replace(remove, "")  # to string, 'cuda:0' -> '0' and '(0, 1)' -> '0,1'
+        device = device.replace(remove, "")
     cpu = device == "cpu"
-    mps = device in {"mps", "mps:0"}  # Apple Metal Performance Shaders (MPS)
+    mps = device in {"mps", "mps:0"}
     if cpu or mps:
-        os.environ["CUDA_VISIBLE_DEVICES"] = "-1"  # force torch.cuda.is_available() = False
-    elif device:  # non-cpu device requested
+        os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
+    elif device:
         if device == "cuda":
             device = "0"
         visible = os.environ.get("CUDA_VISIBLE_DEVICES", None)
@@ -132,7 +130,7 @@ def select_device(device="", batch=0, newline=False, verbose=True):
             LOGGER.info(f'Slurm allocated CUDA devices: {allocated}; selected physical IDs: '
                         f'{os.environ["CUDA_VISIBLE_DEVICES"]}')
         else:
-            os.environ["CUDA_VISIBLE_DEVICES"] = device  # local explicit device selection
+            os.environ["CUDA_VISIBLE_DEVICES"] = device
         if not (torch.cuda.is_available() and torch.cuda.device_count() >= len(device.split(","))):
             LOGGER.info(s)
             install = (
@@ -151,10 +149,10 @@ def select_device(device="", batch=0, newline=False, verbose=True):
                 f"{install}"
             )
 
-    if not cpu and not mps and torch.cuda.is_available():  # prefer GPU if available
-        devices = device.split(",") if device else "0"  # range(torch.cuda.device_count())  # i.e. 0,1,6,7
-        n = len(devices)  # device count
-        if n > 1 and batch > 0 and batch % n != 0:  # check batch_size is divisible by device_count
+    if not cpu and not mps and torch.cuda.is_available():
+        devices = device.split(",") if device else "0"
+        n = len(devices)
+        if n > 1 and batch > 0 and batch % n != 0:
             raise ValueError(
                 f"'batch={batch}' must be a multiple of GPU count {n}. Try 'batch={batch // n * n}' or "
                 f"'batch={batch // n * n + n}', the nearest batch sizes evenly divisible by {n}."
@@ -162,13 +160,13 @@ def select_device(device="", batch=0, newline=False, verbose=True):
         space = " " * (len(s) + 1)
         for i, d in enumerate(devices):
             p = torch.cuda.get_device_properties(i)
-            s += f"{'' if i == 0 else space}CUDA:{d} ({p.name}, {p.total_memory / (1 << 20):.0f}MiB)\n"  # bytes to MB
+            s += f"{'' if i == 0 else space}CUDA:{d} ({p.name}, {p.total_memory / (1 << 20):.0f}MiB)\n"
         arg = "cuda:0"
     elif mps and TORCH_2_0 and torch.backends.mps.is_available():
-        # Prefer MPS if available
+
         s += f"MPS ({get_cpu_info()})\n"
         arg = "mps"
-    else:  # revert to CPU
+    else:
         s += f"CPU ({get_cpu_info()})\n"
         arg = "cpu"
 
@@ -178,14 +176,14 @@ def select_device(device="", batch=0, newline=False, verbose=True):
 
 
 def time_sync():
-    """PyTorch-accurate time."""
+
     if torch.cuda.is_available():
         torch.cuda.synchronize()
     return time.time()
 
 
 def fuse_conv_and_bn(conv, bn):
-    """Fuse Conv2d() and BatchNorm2d() layers https://tehnokv.com/posts/fusing-batchnorm-and-conv/."""
+
     fusedconv = (
         nn.Conv2d(
             conv.in_channels,
@@ -201,12 +199,12 @@ def fuse_conv_and_bn(conv, bn):
         .to(conv.weight.device)
     )
 
-    # Prepare filters
+
     w_conv = conv.weight.clone().view(conv.out_channels, -1)
     w_bn = torch.diag(bn.weight.div(torch.sqrt(bn.eps + bn.running_var)))
     fusedconv.weight.copy_(torch.mm(w_bn, w_conv).view(fusedconv.weight.shape))
 
-    # Prepare spatial bias
+
     b_conv = torch.zeros(conv.weight.shape[0], device=conv.weight.device) if conv.bias is None else conv.bias
     b_bn = bn.bias - bn.weight.mul(bn.running_mean).div(torch.sqrt(bn.running_var + bn.eps))
     fusedconv.bias.copy_(torch.mm(w_bn, b_conv.reshape(-1, 1)).reshape(-1) + b_bn)
@@ -215,7 +213,7 @@ def fuse_conv_and_bn(conv, bn):
 
 
 def fuse_deconv_and_bn(deconv, bn):
-    """Fuse ConvTranspose2d() and BatchNorm2d() layers."""
+
     fuseddconv = (
         nn.ConvTranspose2d(
             deconv.in_channels,
@@ -232,12 +230,12 @@ def fuse_deconv_and_bn(deconv, bn):
         .to(deconv.weight.device)
     )
 
-    # Prepare filters
+
     w_deconv = deconv.weight.clone().view(deconv.out_channels, -1)
     w_bn = torch.diag(bn.weight.div(torch.sqrt(bn.eps + bn.running_var)))
     fuseddconv.weight.copy_(torch.mm(w_bn, w_deconv).view(fuseddconv.weight.shape))
 
-    # Prepare spatial bias
+
     b_conv = torch.zeros(deconv.weight.shape[1], device=deconv.weight.device) if deconv.bias is None else deconv.bias
     b_bn = bn.bias - bn.weight.mul(bn.running_mean).div(torch.sqrt(bn.running_var + bn.eps))
     fuseddconv.bias.copy_(torch.mm(w_bn, b_conv.reshape(-1, 1)).reshape(-1) + b_bn)
@@ -246,40 +244,40 @@ def fuse_deconv_and_bn(deconv, bn):
 
 
 def get_flops(model, imgsz=640):
-    """Return a YOLO model's FLOPs."""
+
     if not thop:
-        return 0.0  # if not installed return 0.0 GFLOPs
+        return 0.0
 
     try:
         model = de_parallel(model)
         p = next(model.parameters())
         if not isinstance(imgsz, list):
-            imgsz = [imgsz, imgsz]  # expand if int/float
+            imgsz = [imgsz, imgsz]
         try:
-            # Use stride size for input tensor
-            stride = max(int(model.stride.max()), 32) if hasattr(model, "stride") else 32  # max stride
-            # im = torch.empty((1, p.shape[1], stride, stride), device=p.device)  # input image in BCHW format
-            im = torch.zeros((1, 6, stride, stride), device=p.device)  # paired profiling input
-            flops = thop.profile(deepcopy(model), inputs=[im], verbose=False)[0] / 1e9 * 2  # stride GFLOPs
-            return flops * imgsz[0] / stride * imgsz[1] / stride  # imgsz GFLOPs
+
+            stride = max(int(model.stride.max()), 32) if hasattr(model, "stride") else 32
+
+            im = torch.zeros((1, 6, stride, stride), device=p.device)
+            flops = thop.profile(deepcopy(model), inputs=[im], verbose=False)[0] / 1e9 * 2
+            return flops * imgsz[0] / stride * imgsz[1] / stride
         except Exception:
-            # Use actual image size for input tensor (i.e. required for RTDETR models)
-            im = torch.empty((1, p.shape[1], *imgsz), device=p.device)  # input image in BCHW format
-            return thop.profile(deepcopy(model), inputs=[im], verbose=False)[0] / 1e9 * 2  # imgsz GFLOPs
+
+            im = torch.empty((1, p.shape[1], *imgsz), device=p.device)
+            return thop.profile(deepcopy(model), inputs=[im], verbose=False)[0] / 1e9 * 2
     except Exception:
         return 0.0
 
 def model_info(model, detailed=False, verbose=True, imgsz=640):
-    """
-    Model information.
 
-    imgsz may be int or list, i.e. imgsz=640 or imgsz=[640, 320].
-    """
+
+
+
+
     if not verbose:
         return
-    n_p = get_num_params(model)  # number of parameters
-    n_g = get_num_gradients(model)  # number of gradients
-    n_l = len(list(model.modules()))  # number of layers
+    n_p = get_num_params(model)
+    n_g = get_num_gradients(model)
+    n_l = len(list(model.modules()))
     if detailed:
         LOGGER.info(
             f"{'layer':>5} {'name':>40} {'gradient':>9} {'parameters':>12} {'shape':>20} {'mu':>10} {'sigma':>10}"
@@ -301,35 +299,35 @@ def model_info(model, detailed=False, verbose=True, imgsz=640):
 
 
 def get_num_params(model):
-    """Return the total number of parameters in a YOLO model."""
+
     return sum(x.numel() for x in model.parameters())
 
 
 def get_num_gradients(model):
-    """Return the total number of parameters with gradients in a YOLO model."""
+
     return sum(x.numel() for x in model.parameters() if x.requires_grad)
 
 
 def model_info_for_loggers(trainer):
-    """
-    Return model info dict with useful model information.
 
-    Example:
-        YOLOv8n info for loggers
-        ```python
-        results = {'model/parameters': 3151904,
-                   'model/GFLOPs': 8.746,
-                   'model/speed_ONNX(ms)': 41.244,
-                   'model/speed_TensorRT(ms)': 3.211,
-                   'model/speed_PyTorch(ms)': 18.755}
-        ```
-    """
-    if trainer.args.profile:  # profile ONNX and TensorRT times
+
+
+
+
+
+
+
+
+
+
+
+
+    if trainer.args.profile:
         from ultralytics.utils.benchmarks import ProfileModels
 
         results = ProfileModels([trainer.last], device=trainer.device).profile()[0]
         results.pop("model/name")
-    else:  # only return PyTorch times from most recent validation
+    else:
         results = {
             "model/parameters": get_num_params(trainer.model),
             "model/GFLOPs": round(get_flops(trainer.model), 3),
@@ -342,27 +340,27 @@ def model_info_for_loggers(trainer):
 
 
 def get_flops_with_torch_profiler(model, imgsz=640):
-    """Compute model FLOPs (thop alternative)."""
+
     if TORCH_2_0:
         model = de_parallel(model)
         p = next(model.parameters())
-        stride = (max(int(model.stride.max()), 32) if hasattr(model, "stride") else 32) * 2  # max stride
-        im = torch.zeros((1, p.shape[1], stride, stride), device=p.device)  # input image in BCHW format
+        stride = (max(int(model.stride.max()), 32) if hasattr(model, "stride") else 32) * 2
+        im = torch.zeros((1, p.shape[1], stride, stride), device=p.device)
         with torch.profiler.profile(with_flops=True) as prof:
             model(im)
         flops = sum(x.flops for x in prof.key_averages()) / 1e9
-        imgsz = imgsz if isinstance(imgsz, list) else [imgsz, imgsz]  # expand if int/float
-        flops = flops * imgsz[0] / stride * imgsz[1] / stride  # 640x640 GFLOPs
+        imgsz = imgsz if isinstance(imgsz, list) else [imgsz, imgsz]
+        flops = flops * imgsz[0] / stride * imgsz[1] / stride
         return flops
     return 0
 
 
 def initialize_weights(model):
-    """Initialize model weights to random values."""
+
     for m in model.modules():
         t = type(m)
         if t is nn.Conv2d:
-            pass  # nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
+            pass
         elif t is nn.BatchNorm2d:
             m.eps = 1e-3
             m.momentum = 0.03
@@ -371,28 +369,28 @@ def initialize_weights(model):
 
 
 def scale_img(img, ratio=1.0, same_shape=False, gs=32):
-    """Scales and pads an image tensor of shape img(bs,3,y,x) based on given ratio and grid size gs, optionally
-    retaining the original shape.
-    """
+
+
+
     if ratio == 1.0:
         return img
     h, w = img.shape[2:]
-    s = (int(h * ratio), int(w * ratio))  # new size
-    img = F.interpolate(img, size=s, mode="bilinear", align_corners=False)  # resize
-    if not same_shape:  # pad/crop img
+    s = (int(h * ratio), int(w * ratio))
+    img = F.interpolate(img, size=s, mode="bilinear", align_corners=False)
+    if not same_shape:
         h, w = (math.ceil(x * ratio / gs) * gs for x in (h, w))
-    return F.pad(img, [0, w - s[1], 0, h - s[0]], value=0.447)  # value = imagenet mean
+    return F.pad(img, [0, w - s[1], 0, h - s[0]], value=0.447)
 
 
 def make_divisible(x, divisor):
-    """Returns nearest x divisible by divisor."""
+
     if isinstance(divisor, torch.Tensor):
-        divisor = int(divisor.max())  # to int
+        divisor = int(divisor.max())
     return math.ceil(x / divisor) * divisor
 
 
 def copy_attr(a, b, include=(), exclude=()):
-    """Copies attributes from object 'b' to object 'a', with options to include/exclude certain attributes."""
+
     for k, v in b.__dict__.items():
         if (len(include) and k not in include) or k.startswith("_") or k in exclude:
             continue
@@ -401,42 +399,42 @@ def copy_attr(a, b, include=(), exclude=()):
 
 
 def get_latest_opset():
-    """Return second-most (for maturity) recently supported ONNX opset by this version of torch."""
 
-    return max(int(k[14:]) for k in vars(torch.onnx) if "symbolic_opset" in k) - 1  # opset
+
+    return max(int(k[14:]) for k in vars(torch.onnx) if "symbolic_opset" in k) - 1
 
 
 def intersect_dicts(da, db, exclude=()):
-    """Returns a dictionary of intersecting keys with matching shapes, excluding 'exclude' keys, using da values."""
+
     return {k: v for k, v in da.items() if k in db and all(x not in k for x in exclude) and v.shape == db[k].shape}
 
 
 def is_parallel(model):
-    """Returns True if model is of type DP or DDP."""
+
     return isinstance(model, (nn.parallel.DataParallel, nn.parallel.DistributedDataParallel))
 
 
 def de_parallel(model):
-    """De-parallelize a model: returns single-GPU model if model is of type DP or DDP."""
+
     return model.module if is_parallel(model) else model
 
 
 def one_cycle(y1=0.0, y2=1.0, steps=100):
-    """Returns a lambda function for sinusoidal ramp from y1 to y2 https://arxiv.org/pdf/1812.01187.pdf."""
+
     return lambda x: max((1 - math.cos(x * math.pi / steps)) / 2, 0) * (y2 - y1) + y1
 
 
 def init_seeds(seed=0, deterministic=False):
-    """Initialize random number generator (RNG) seeds https://pytorch.org/docs/stable/notes/randomness.html."""
+
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
     torch.cuda.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)  # for Multi-GPU, exception safe
-    # torch.backends.cudnn.benchmark = True  # AutoBatch problem https://github.com/ultralytics/yolov5/issues/9287
+    torch.cuda.manual_seed_all(seed)
+
     if deterministic:
         if TORCH_2_0:
-            torch.use_deterministic_algorithms(True, warn_only=True)  # warn if deterministic is not possible
+            torch.use_deterministic_algorithms(True, warn_only=True)
             torch.backends.cudnn.deterministic = True
             os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
             os.environ["PYTHONHASHSEED"] = str(seed)
@@ -448,89 +446,89 @@ def init_seeds(seed=0, deterministic=False):
 
 
 class ModelEMA:
-    """Updated Exponential Moving Average (EMA) from https://github.com/rwightman/pytorch-image-models
-    Keeps a moving average of everything in the model state_dict (parameters and buffers)
-    For EMA details see https://www.tensorflow.org/api_docs/python/tf/train/ExponentialMovingAverage
-    To disable EMA set the `enabled` attribute to `False`.
-    """
+
+
+
+
+
 
     def __init__(self, model, decay=0.9999, tau=2000, updates=0):
-        """Create EMA."""
-        self.ema = deepcopy(de_parallel(model)).eval()  # FP32 EMA
-        self.updates = updates  # number of EMA updates
-        self.decay = lambda x: decay * (1 - math.exp(-x / tau))  # decay exponential ramp (to help early epochs)
+
+        self.ema = deepcopy(de_parallel(model)).eval()
+        self.updates = updates
+        self.decay = lambda x: decay * (1 - math.exp(-x / tau))
         for p in self.ema.parameters():
             p.requires_grad_(False)
         self.enabled = True
 
     def update(self, model):
-        """Update EMA parameters."""
+
         if self.enabled:
             self.updates += 1
             d = self.decay(self.updates)
 
-            msd = de_parallel(model).state_dict()  # model state_dict
+            msd = de_parallel(model).state_dict()
             for k, v in self.ema.state_dict().items():
-                if v.dtype.is_floating_point:  # true for FP16 and FP32
+                if v.dtype.is_floating_point:
                     v *= d
                     v += (1 - d) * msd[k].detach()
-                    # assert v.dtype == msd[k].dtype == torch.float32, f'{k}: EMA {v.dtype},  model {msd[k].dtype}'
+
 
     def update_attr(self, model, include=(), exclude=("process_group", "reducer")):
-        """Updates attributes and saves stripped model with optimizer removed."""
+
         if self.enabled:
             copy_attr(self.ema, model, include, exclude)
 
 
 def strip_optimizer(f: Union[str, Path] = "best.pt", s: str = "") -> None:
-    """
-    Strip optimizer from 'f' to finalize training, optionally save as 's'.
 
-    Args:
-        f (str): file path to model to strip the optimizer from. Default is 'best.pt'.
-        s (str): file path to save the model with stripped optimizer to. If not provided, 'f' will be overwritten.
 
-    Returns:
-        None
 
-    Example:
-        ```python
-        from pathlib import Path
-        from ultralytics.utils.torch_utils import strip_optimizer
 
-        for f in Path('path/to/weights').rglob('*.pt'):
-            strip_optimizer(f)
-        ```
-    """
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     x = torch.load(f, map_location=torch.device("cpu"))
     if "model" not in x:
         LOGGER.info(f"Skipping {f}, not a valid Ultralytics model.")
         return
 
     if hasattr(x["model"], "args"):
-        x["model"].args = dict(x["model"].args)  # convert from IterableSimpleNamespace to dict
-    args = {**DEFAULT_CFG_DICT, **x["train_args"]} if "train_args" in x else None  # combine args
+        x["model"].args = dict(x["model"].args)
+    args = {**DEFAULT_CFG_DICT, **x["train_args"]} if "train_args" in x else None
     if x.get("ema"):
-        x["model"] = x["ema"]  # replace model with ema
-    for k in "optimizer", "best_fitness", "ema", "updates":  # keys
+        x["model"] = x["ema"]
+    for k in "optimizer", "best_fitness", "ema", "updates":
         x[k] = None
     x["epoch"] = -1
-    x["model"].half()  # to FP16
+    x["model"].half()
     for p in x["model"].parameters():
         p.requires_grad = False
-    x["train_args"] = {k: v for k, v in args.items() if k in DEFAULT_CFG_KEYS}  # strip non-default keys
-    # x['model'].args = x['train_args']
+    x["train_args"] = {k: v for k, v in args.items() if k in DEFAULT_CFG_KEYS}
+
     torch.save(x, s or f)
-    mb = os.path.getsize(s or f) / 1e6  # file size
+    mb = os.path.getsize(s or f) / 1e6
     LOGGER.info(f"Optimizer stripped from {f},{f' saved as {s},' if s else ''} {mb:.1f}MB")
 
 
 def convert_optimizer_state_dict_to_fp16(state_dict):
-    """
-    Converts the state_dict of a given optimizer to FP16, focusing on the 'state' key for tensor conversions.
 
-    This method aims to reduce storage size without altering 'param_groups' as they contain non-tensor data.
-    """
+
+
+
+
     for state in state_dict["state"].values():
         for k, v in state.items():
             if k != "step" and isinstance(v, torch.Tensor) and v.dtype is torch.float32:
@@ -540,19 +538,19 @@ def convert_optimizer_state_dict_to_fp16(state_dict):
 
 
 def profile(input, ops, n=10, device=None):
-    """
-    Ultralytics speed, memory and FLOPs profiler.
 
-    Example:
-        ```python
-        from ultralytics.utils.torch_utils import profile
 
-        input = torch.randn(16, 3, 640, 640)
-        m1 = lambda x: x * torch.sigmoid(x)
-        m2 = nn.SiLU()
-        profile(input, [m1, m2], n=100)  # profile over 100 iterations
-        ```
-    """
+
+
+
+
+
+
+
+
+
+
+
     results = []
     if not isinstance(device, torch.device):
         device = select_device(device)
@@ -565,11 +563,11 @@ def profile(input, ops, n=10, device=None):
         x = x.to(device)
         x.requires_grad = True
         for m in ops if isinstance(ops, list) else [ops]:
-            m = m.to(device) if hasattr(m, "to") else m  # device
+            m = m.to(device) if hasattr(m, "to") else m
             m = m.half() if hasattr(m, "half") and isinstance(x, torch.Tensor) and x.dtype is torch.float16 else m
-            tf, tb, t = 0, 0, [0, 0, 0]  # dt forward, backward
+            tf, tb, t = 0, 0, [0, 0, 0]
             try:
-                flops = thop.profile(m, inputs=[x], verbose=False)[0] / 1e9 * 2 if thop else 0  # GFLOPs
+                flops = thop.profile(m, inputs=[x], verbose=False)[0] / 1e9 * 2 if thop else 0
             except Exception:
                 flops = 0
 
@@ -581,14 +579,14 @@ def profile(input, ops, n=10, device=None):
                     try:
                         (sum(yi.sum() for yi in y) if isinstance(y, list) else y).sum().backward()
                         t[2] = time_sync()
-                    except Exception:  # no backward method
-                        # print(e)  # for debug
+                    except Exception:
+
                         t[2] = float("nan")
-                    tf += (t[1] - t[0]) * 1000 / n  # ms per op forward
-                    tb += (t[2] - t[1]) * 1000 / n  # ms per op backward
-                mem = torch.cuda.memory_reserved() / 1e9 if torch.cuda.is_available() else 0  # (GB)
-                s_in, s_out = (tuple(x.shape) if isinstance(x, torch.Tensor) else "list" for x in (x, y))  # shapes
-                p = sum(x.numel() for x in m.parameters()) if isinstance(m, nn.Module) else 0  # parameters
+                    tf += (t[1] - t[0]) * 1000 / n
+                    tb += (t[2] - t[1]) * 1000 / n
+                mem = torch.cuda.memory_reserved() / 1e9 if torch.cuda.is_available() else 0
+                s_in, s_out = (tuple(x.shape) if isinstance(x, torch.Tensor) else "list" for x in (x, y))
+                p = sum(x.numel() for x in m.parameters()) if isinstance(m, nn.Module) else 0
                 LOGGER.info(f"{p:12}{flops:12.4g}{mem:>14.3f}{tf:14.4g}{tb:14.4g}{str(s_in):>24s}{str(s_out):>24s}")
                 results.append([p, flops, mem, tf, tb, s_in, s_out])
             except Exception as e:
@@ -599,40 +597,40 @@ def profile(input, ops, n=10, device=None):
 
 
 class EarlyStopping:
-    """Early stopping class that stops training when a specified number of epochs have passed without improvement."""
+
 
     def __init__(self, patience=50):
-        """
-        Initialize early stopping object.
 
-        Args:
-            patience (int, optional): Number of epochs to wait after fitness stops improving before stopping.
-        """
-        self.best_fitness = 0.0  # i.e. mAP
+
+
+
+
+
+        self.best_fitness = 0.0
         self.best_epoch = 0
-        self.patience = patience or float("inf")  # epochs to wait after fitness stops improving to stop
-        self.possible_stop = False  # possible stop may occur next epoch
+        self.patience = patience or float("inf")
+        self.possible_stop = False
 
     def __call__(self, epoch, fitness):
-        """
-        Check whether to stop training.
 
-        Args:
-            epoch (int): Current epoch of training
-            fitness (float): Fitness value of current epoch
 
-        Returns:
-            (bool): True if training should stop, False otherwise
-        """
-        if fitness is None:  # check if fitness=None (happens when val=False)
+
+
+
+
+
+
+
+
+        if fitness is None:
             return False
 
-        if fitness >= self.best_fitness:  # >= 0 to allow for early zero-fitness stage of training
+        if fitness >= self.best_fitness:
             self.best_epoch = epoch
             self.best_fitness = fitness
-        delta = epoch - self.best_epoch  # epochs without improvement
-        self.possible_stop = delta >= (self.patience - 1)  # possible stop may occur next epoch
-        stop = delta >= self.patience  # stop training if patience exceeded
+        delta = epoch - self.best_epoch
+        self.possible_stop = delta >= (self.patience - 1)
+        stop = delta >= self.patience
         if stop:
             prefix = colorstr("EarlyStopping: ")
             LOGGER.info(

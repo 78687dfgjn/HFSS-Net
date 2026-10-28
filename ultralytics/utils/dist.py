@@ -1,5 +1,3 @@
-# Ultralytics YOLO 🚀, AGPL-3.0 license
-
 import os
 import shutil
 import socket
@@ -11,19 +9,19 @@ from .torch_utils import TORCH_1_9
 
 
 def find_free_network_port() -> int:
-    """
-    Finds a free port on localhost.
 
-    It is useful in single-node training when we don't want to connect to a real main node but have to set the
-    `MASTER_PORT` environment variable.
-    """
+
+
+
+
+
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.bind(("127.0.0.1", 0))
-        return s.getsockname()[1]  # port
+        return s.getsockname()[1]
 
 
 def generate_ddp_file(trainer):
-    """Generates a DDP file and returns its file name."""
+
     module, name = f"{trainer.__class__.__module__}.{trainer.__class__.__name__}".rsplit(".", 1)
 
     content = f"""
@@ -53,11 +51,11 @@ if __name__ == "__main__":
 
 
 def generate_ddp_command(world_size, trainer):
-    """Generates and returns command for distributed training."""
-    import __main__  # noqa local import to avoid https://github.com/Lightning-AI/lightning/issues/15218
+
+    import __main__
 
     if not trainer.resume:
-        shutil.rmtree(trainer.save_dir)  # remove the save_dir
+        shutil.rmtree(trainer.save_dir)
     file = generate_ddp_file(trainer)
     dist_cmd = "torch.distributed.run" if TORCH_1_9 else "torch.distributed.launch"
     port = find_free_network_port()
@@ -66,6 +64,6 @@ def generate_ddp_command(world_size, trainer):
 
 
 def ddp_cleanup(trainer, file):
-    """Delete temp file if created."""
-    if f"{id(trainer)}.py" in file:  # if temp_file suffix in file
+
+    if f"{id(trainer)}.py" in file:
         os.remove(file)

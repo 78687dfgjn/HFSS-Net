@@ -1,4 +1,3 @@
-"""FP32 640-square PTANet-metric evaluation of a release checkpoint."""
 import argparse
 from pathlib import Path
 import rgbt

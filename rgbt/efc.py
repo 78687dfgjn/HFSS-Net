@@ -2,13 +2,13 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-# 论文题目：A Lightweight Fusion Strategy With Enhanced Interlayer Feature Correlation for Small Object Detection
-# 中文题目:  轻量级融合策略增强层间特征相关性，用于小目标检测
-# 论文链接：https://ieeexplore.ieee.org/abstract/document/10671587
-# 官方github：https://github.com/nuliweixiao/EFC
-# 所属机构：北京理工大学
-# 关键词：特征融合、轻量级、小目标检测
-# 微信公众号：AI缝合术
+
+
+
+
+
+
+
 
 class EFC(nn.Module):
     def __init__(self,

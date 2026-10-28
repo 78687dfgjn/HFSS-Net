@@ -1,4 +1,3 @@
-"""Train SDGW + EFC + HFP for RGB-T object detection."""
 import argparse
 import hashlib
 import platform
@@ -49,14 +48,14 @@ def main():
             environment=dict(python=platform.python_version(),torch=torch.__version__,cuda=torch.version.cuda),
             checkpoint_selection='best_map50.pt primary; fitness best.pt separate')
         import ultralytics.engine.trainer as engine
-        engine.check_amp=lambda model:True  # No unrelated diagnostic model download.
+        engine.check_amp=lambda model:True
         trainer=ReproTrainer(overrides=dict(model='hfss-net.yaml',data=str(a.data.resolve()),epochs=epochs,
             patience=patience,close_mosaic=close,batch=a.batch,nbs=64,imgsz=640,optimizer='SGD',lr0=.005,
             warmup_epochs=3.,lrf=.01,momentum=.937,weight_decay=.0005,warmup_momentum=.8,warmup_bias_lr=.1,cache=False,seg=0.,conf=spec['conf'],iou=spec['iou'],max_det=300,seed=a.seed,
             deterministic=True,pretrained=False,device=a.device,workers=a.workers,amp=not a.no_amp,
             rect=False,val=True,plots=False,save_period=-1,project=str(project),name=a.name))
-        # Match the established Trainer rebuild after its seed reset; preserve
-        # all initialized tensors while consuming the same constructor RNG.
+
+
         trainer.model=trainer.get_model(cfg=model.yaml,weights=model,verbose=False)
         actual=trainer.model.state_dict()
         for key,value in model.state_dict().items():torch.testing.assert_close(actual[key],value,rtol=0,atol=0)

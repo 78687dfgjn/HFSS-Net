@@ -1,4 +1,3 @@
-"""Frozen graph and dataset defaults; contains no learned parameters."""
 import yaml
 ARCHITECTURE = yaml.safe_load(r"""nc: 3
 paper_mode: true

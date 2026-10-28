@@ -1,4 +1,3 @@
-"""Prepare official RGB-T training/evaluation pairs and validate labels."""
 import argparse
 import collections
 import hashlib

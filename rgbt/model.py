@@ -1,4 +1,3 @@
-"""SDGW + EFC + DCT-HFP, matching combo__sdgw__efc__hfp slot placement."""
 import copy,math
 from pathlib import Path
 import torch
@@ -152,7 +151,7 @@ BACKBONE_MAP={0:0,1:1,2:2,3:3,9:4,10:5,14:6,15:7,19:8,20:9,
               4:0,5:1,6:2,7:3,11:4,12:5,16:6,17:7,21:8,22:9}
 
 def initialize(pretrained,nc):
-    """Rebuild both historical initialization streams without distributing private checkpoints."""
+
     if nc not in (1,3):raise ValueError('Only the documented one/three-class datasets are supported')
     checkpoint=torch.load(Path(pretrained),map_location='cpu',weights_only=False)
     source=(checkpoint.get('ema') or checkpoint['model']).float().state_dict()

@@ -1,27 +1,25 @@
-# Ultralytics YOLO 🚀, AGPL-3.0 license
-
 from ultralytics.engine.predictor import BasePredictor
 from ultralytics.engine.results import Results
 from ultralytics.utils import ops
 
 
 class DetectionPredictor(BasePredictor):
-    """
-    A class extending the BasePredictor class for prediction based on a detection model.
 
-    Example:
-        ```python
-        from ultralytics.utils import ASSETS
-        from ultralytics.models.yolo.detect import DetectionPredictor
 
-        args = dict(model='yolov8n.pt', source=ASSETS)
-        predictor = DetectionPredictor(overrides=args)
-        predictor.predict_cli()
-        ```
-    """
+
+
+
+
+
+
+
+
+
+
+
 
     def postprocess(self, preds, img, orig_imgs):
-        """Post-processes predictions and returns a list of Results objects."""
+
         preds = ops.non_max_suppression(
             preds,
             self.args.conf,
@@ -31,7 +29,7 @@ class DetectionPredictor(BasePredictor):
             classes=self.args.classes,
         )
 
-        if not isinstance(orig_imgs, list):  # input images are a torch.Tensor, not a list
+        if not isinstance(orig_imgs, list):
             orig_imgs = ops.convert_torch2numpy_batch(orig_imgs)
 
         results = []

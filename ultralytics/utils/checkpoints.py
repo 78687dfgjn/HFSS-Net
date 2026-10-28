@@ -1,4 +1,3 @@
-"""Atomic checkpoint writes and independently tracked validation criteria."""
 import io
 import json
 import math
@@ -27,7 +26,7 @@ def inspect_checkpoint(data):
     checkpoint=torch.load(io.BytesIO(data),map_location='cpu',weights_only=False)
     metrics=checkpoint['train_metrics'];results=checkpoint['train_results']
     epoch=int(checkpoint['epoch'])+1
-    if epoch==0:epoch=int(results['epoch'][-1])  # completed runs have optimizer stripped
+    if epoch==0:epoch=int(results['epoch'][-1])
     assert epoch>0 and int(results['epoch'][-1])==epoch,'Checkpoint/metric epoch mismatch'
     score=float(metrics[MAP50]);fitness=float(metrics['fitness'])
     assert math.isfinite(score) and math.isfinite(fitness)
@@ -37,7 +36,7 @@ def inspect_checkpoint(data):
 
 
 def protect_candidate(directory,data,record,provenance):
-    """Call once per validated checkpoint. Never replace a higher criterion."""
+
     directory=Path(directory)
     updates=[]
     for key,filename in (('map50','best_map50'),('fitness','best_fitness')):

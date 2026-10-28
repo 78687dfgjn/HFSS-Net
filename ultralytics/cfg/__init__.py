@@ -1,5 +1,3 @@
-# Ultralytics YOLO 🚀, AGPL-3.0 license
-
 import contextlib
 import shutil
 import subprocess
@@ -29,7 +27,7 @@ from ultralytics.utils import (
     yaml_print,
 )
 
-# Define valid tasks and modes
+
 MODES = {"train", "val", "predict", "export", "track", "benchmark"}
 TASKS = {"detect", "segment", "classify", "pose", "obb"}
 TASK2DATA = {
@@ -54,7 +52,7 @@ TASK2METRIC = {
     "obb": "metrics/mAP50-95(B)",
 }
 
-ARGV = sys.argv or ["", ""]  # sometimes sys.argv = []
+ARGV = sys.argv or ["", ""]
 CLI_HELP_MSG = f"""
     Arguments received: {str(['yolo'] + ARGV[1:])}. Ultralytics 'yolo' commands use the following syntax:
 
@@ -93,7 +91,7 @@ CLI_HELP_MSG = f"""
     GitHub: https://github.com/ultralytics/ultralytics
     """
 
-# Define keys for arg type checks
+
 CFG_FLOAT_KEYS = {"warmup_epochs", "box", "cls", "dfl", "degrees", "shear", "time", "workspace"}
 CFG_FRACTION_KEYS = {
     "dropout",
@@ -120,7 +118,7 @@ CFG_FRACTION_KEYS = {
     "conf",
     "iou",
     "fraction",
-}  # fraction floats 0.0 - 1.0
+}
 CFG_INT_KEYS = {
     "epochs",
     "patience",
@@ -174,62 +172,62 @@ CFG_BOOL_KEYS = {
 
 
 def cfg2dict(cfg):
-    """
-    Convert a configuration object to a dictionary, whether it is a file path, a string, or a SimpleNamespace object.
 
-    Args:
-        cfg (str | Path | dict | SimpleNamespace): Configuration object to be converted to a dictionary.
 
-    Returns:
-        cfg (dict): Configuration object in dictionary format.
-    """
+
+
+
+
+
+
+
     if isinstance(cfg, (str, Path)):
-        cfg = yaml_load(cfg)  # load dict
+        cfg = yaml_load(cfg)
     elif isinstance(cfg, SimpleNamespace):
-        cfg = vars(cfg)  # convert to dict
+        cfg = vars(cfg)
     return cfg
 
 
 def get_cfg(cfg: Union[str, Path, Dict, SimpleNamespace] = DEFAULT_CFG_DICT, overrides: Dict = None):
-    """
-    Load and merge configuration data from a file or dictionary.
 
-    Args:
-        cfg (str | Path | Dict | SimpleNamespace): Configuration data.
-        overrides (str | Dict | optional): Overrides in the form of a file name or a dictionary. Default is None.
 
-    Returns:
-        (SimpleNamespace): Training arguments namespace.
-    """
+
+
+
+
+
+
+
+
     cfg = cfg2dict(cfg)
 
-    # Merge overrides
+
     if overrides:
         overrides = cfg2dict(overrides)
         if "save_dir" not in cfg:
-            overrides.pop("save_dir", None)  # special override keys to ignore
+            overrides.pop("save_dir", None)
         check_dict_alignment(cfg, overrides)
-        cfg = {**cfg, **overrides}  # merge cfg and overrides dicts (prefer overrides)
+        cfg = {**cfg, **overrides}
 
-    # Special handling for numeric project/name
+
     for k in "project", "name":
         if k in cfg and isinstance(cfg[k], (int, float)):
             cfg[k] = str(cfg[k])
-    if cfg.get("name") == "model":  # assign model to 'name' arg
+    if cfg.get("name") == "model":
         cfg["name"] = cfg.get("model", "").split(".")[0]
         LOGGER.warning(f"WARNING ⚠️ 'name=model' automatically updated to 'name={cfg['name']}'.")
 
-    # Type and Value checks
+
     check_cfg(cfg)
 
-    # Return instance
+
     return IterableSimpleNamespace(**cfg)
 
 
 def check_cfg(cfg, hard=True):
-    """Check Ultralytics configuration argument types and values."""
+
     for k, v in cfg.items():
-        if v is not None:  # None values may be from optional args
+        if v is not None:
             if k in CFG_FLOAT_KEYS and not isinstance(v, (int, float)):
                 if hard:
                     raise TypeError(
@@ -263,7 +261,7 @@ def check_cfg(cfg, hard=True):
 
 
 def get_save_dir(args, name=None):
-    """Return save_dir as created from train/val/predict arguments."""
+
 
     if getattr(args, "save_dir", None):
         save_dir = args.save_dir
@@ -278,7 +276,7 @@ def get_save_dir(args, name=None):
 
 
 def _handle_deprecation(custom):
-    """Hardcoded function to handle deprecated config keys."""
+
 
     for key in custom.copy().keys():
         if key == "boxes":
@@ -298,15 +296,15 @@ def _handle_deprecation(custom):
 
 
 def check_dict_alignment(base: Dict, custom: Dict, e=None):
-    """
-    This function checks for any mismatched keys between a custom configuration list and a base configuration list. If
-    any mismatched keys are found, the function prints out similar keys from the base list and exits the program.
 
-    Args:
-        custom (dict): a dictionary of custom configuration options
-        base (dict): a dictionary of base configuration options
-        e (Error, optional): An optional error that is passed by the calling function.
-    """
+
+
+
+
+
+
+
+
     custom = _handle_deprecation(custom)
     base_keys, custom_keys = (set(x.keys()) for x in (base, custom))
     mismatched = [k for k in custom_keys if k not in base_keys]
@@ -315,7 +313,7 @@ def check_dict_alignment(base: Dict, custom: Dict, e=None):
 
         string = ""
         for x in mismatched:
-            matches = get_close_matches(x, base_keys)  # key list
+            matches = get_close_matches(x, base_keys)
             matches = [f"{k}={base[k]}" if base.get(k) is not None else k for k in matches]
             match_str = f"Similar arguments are i.e. {matches}." if matches else ""
             string += f"'{colorstr('red', 'bold', x)}' is not a valid YOLO argument. {match_str}\n"
@@ -323,25 +321,25 @@ def check_dict_alignment(base: Dict, custom: Dict, e=None):
 
 
 def merge_equals_args(args: List[str]) -> List[str]:
-    """
-    Merges arguments around isolated '=' args in a list of strings. The function considers cases where the first
-    argument ends with '=' or the second starts with '=', as well as when the middle one is an equals sign.
 
-    Args:
-        args (List[str]): A list of strings where each element is an argument.
 
-    Returns:
-        (List[str]): A list of strings where the arguments around isolated '=' are merged.
-    """
+
+
+
+
+
+
+
+
     new_args = []
     for i, arg in enumerate(args):
-        if arg == "=" and 0 < i < len(args) - 1:  # merge ['arg', '=', 'val']
+        if arg == "=" and 0 < i < len(args) - 1:
             new_args[-1] += f"={args[i + 1]}"
             del args[i + 1]
-        elif arg.endswith("=") and i < len(args) - 1 and "=" not in args[i + 1]:  # merge ['arg=', 'val']
+        elif arg.endswith("=") and i < len(args) - 1 and "=" not in args[i + 1]:
             new_args.append(f"{arg}{args[i + 1]}")
             del args[i + 1]
-        elif arg.startswith("=") and i > 0:  # merge ['arg', '=val']
+        elif arg.startswith("=") and i > 0:
             new_args[-1] += arg
         else:
             new_args.append(arg)
@@ -349,81 +347,81 @@ def merge_equals_args(args: List[str]) -> List[str]:
 
 
 def handle_yolo_hub(args: List[str]) -> None:
-    """
-    Handle Ultralytics HUB command-line interface (CLI) commands.
 
-    This function processes Ultralytics HUB CLI commands such as login and logout.
-    It should be called when executing a script with arguments related to HUB authentication.
 
-    Args:
-        args (List[str]): A list of command line arguments
 
-    Example:
-        ```bash
-        python my_script.py hub login your_api_key
-        ```
-    """
+
+
+
+
+
+
+
+
+
+
+
     from ultralytics import hub
 
     if args[0] == "login":
         key = args[1] if len(args) > 1 else ""
-        # Log in to Ultralytics HUB using the provided API key
+
         hub.login(key)
     elif args[0] == "logout":
-        # Log out from Ultralytics HUB
+
         hub.logout()
 
 
 def handle_yolo_settings(args: List[str]) -> None:
-    """
-    Handle YOLO settings command-line interface (CLI) commands.
 
-    This function processes YOLO settings CLI commands such as reset.
-    It should be called when executing a script with arguments related to YOLO settings management.
 
-    Args:
-        args (List[str]): A list of command line arguments for YOLO settings management.
 
-    Example:
-        ```bash
-        python my_script.py yolo settings reset
-        ```
-    """
-    url = "https://docs.ultralytics.com/quickstart/#ultralytics-settings"  # help URL
+
+
+
+
+
+
+
+
+
+
+
+    url = "https://docs.ultralytics.com/quickstart/#ultralytics-settings"
     try:
         if any(args):
             if args[0] == "reset":
-                SETTINGS_YAML.unlink()  # delete the settings file
-                SETTINGS.reset()  # create new settings
-                LOGGER.info("Settings reset successfully")  # inform the user that settings have been reset
-            else:  # save a new setting
+                SETTINGS_YAML.unlink()
+                SETTINGS.reset()
+                LOGGER.info("Settings reset successfully")
+            else:
                 new = dict(parse_key_value_pair(a) for a in args)
                 check_dict_alignment(SETTINGS, new)
                 SETTINGS.update(new)
 
         LOGGER.info(f"💡 Learn about settings at {url}")
-        yaml_print(SETTINGS_YAML)  # print the current settings
+        yaml_print(SETTINGS_YAML)
     except Exception as e:
         LOGGER.warning(f"WARNING ⚠️ settings error: '{e}'. Please see {url} for help.")
 
 
 def handle_explorer():
-    """Open the Ultralytics Explorer GUI."""
+
     checks.check_requirements("streamlit")
     LOGGER.info("💡 Loading Explorer dashboard...")
     subprocess.run(["streamlit", "run", ROOT / "data/explorer/gui/dash.py", "--server.maxMessageSize", "2048"])
 
 
 def parse_key_value_pair(pair):
-    """Parse one 'key=value' pair and return key and value."""
-    k, v = pair.split("=", 1)  # split on first '=' sign
-    k, v = k.strip(), v.strip()  # remove spaces
+
+    k, v = pair.split("=", 1)
+    k, v = k.strip(), v.strip()
     assert v, f"missing '{k}' value"
     return k, smart_value(v)
 
 
 def smart_value(v):
-    """Convert a string to an underlying type such as int, float, bool, etc."""
+
     v_lower = v.lower()
     if v_lower == "none":
         return None
@@ -438,22 +436,22 @@ def smart_value(v):
 
 
 def entrypoint(debug=""):
-    """
-    This function is the ultralytics package entrypoint, it's responsible for parsing the command line arguments passed
-    to the package.
 
-    This function allows for:
-    - passing mandatory YOLO args as a list of strings
-    - specifying the task to be performed, either 'detect', 'segment' or 'classify'
-    - specifying the mode, either 'train', 'val', 'test', or 'predict'
-    - running special modes like 'checks'
-    - passing overrides to the package's configuration
 
-    It uses the package's default cfg and initializes it using the passed overrides.
-    Then it calls the CLI function with the composed cfg
-    """
+
+
+
+
+
+
+
+
+
+
+
+
     args = (debug.split(" ") if debug else ARGV)[1:]
-    if not args:  # no arguments passed
+    if not args:
         LOGGER.info(CLI_HELP_MSG)
         return
 
@@ -470,13 +468,13 @@ def entrypoint(debug=""):
     }
     full_args_dict = {**DEFAULT_CFG_DICT, **{k: None for k in TASKS}, **{k: None for k in MODES}, **special}
 
-    # Define common misuses of special commands, i.e. -h, -help, --help
-    special.update({k[0]: v for k, v in special.items()})  # singular
-    special.update({k[:-1]: v for k, v in special.items() if len(k) > 1 and k.endswith("s")})  # singular
+
+    special.update({k[0]: v for k, v in special.items()})
+    special.update({k[:-1]: v for k, v in special.items() if len(k) > 1 and k.endswith("s")})
     special = {**special, **{f"-{k}": v for k, v in special.items()}, **{f"--{k}": v for k, v in special.items()}}
 
-    overrides = {}  # basic overrides, i.e. imgsz=320
-    for a in merge_equals_args(args):  # merge spaces around '=' sign
+    overrides = {}
+    for a in merge_equals_args(args):
         if a.startswith("--"):
             LOGGER.warning(f"WARNING ⚠️ argument '{a}' does not require leading dashes '--', updating to '{a[2:]}'.")
             a = a[2:]
@@ -486,7 +484,7 @@ def entrypoint(debug=""):
         if "=" in a:
             try:
                 k, v = parse_key_value_pair(a)
-                if k == "cfg" and v is not None:  # custom.yaml passed
+                if k == "cfg" and v is not None:
                     LOGGER.info(f"Overriding {DEFAULT_CFG_PATH} with {v}")
                     overrides = {k: val for k, val in yaml_load(checks.check_yaml(v)).items() if k != "cfg"}
                 else:
@@ -502,7 +500,7 @@ def entrypoint(debug=""):
             special[a.lower()]()
             return
         elif a in DEFAULT_CFG_DICT and isinstance(DEFAULT_CFG_DICT[a], bool):
-            overrides[a] = True  # auto-True for default bool args, i.e. 'yolo show' sets show=True
+            overrides[a] = True
         elif a in DEFAULT_CFG_DICT:
             raise SyntaxError(
                 f"'{colorstr('red', 'bold', a)}' is a valid YOLO argument but is missing an '=' sign "
@@ -511,10 +509,10 @@ def entrypoint(debug=""):
         else:
             check_dict_alignment(full_args_dict, {a: ""})
 
-    # Check keys
+
     check_dict_alignment(full_args_dict, overrides)
 
-    # Mode
+
     mode = overrides.get("mode")
     if mode is None:
         mode = DEFAULT_CFG.mode or "predict"
@@ -522,7 +520,7 @@ def entrypoint(debug=""):
     elif mode not in MODES:
         raise ValueError(f"Invalid 'mode={mode}'. Valid modes are {MODES}.\n{CLI_HELP_MSG}")
 
-    # Task
+
     task = overrides.pop("task", None)
     if task:
         if task not in TASKS:
@@ -530,17 +528,17 @@ def entrypoint(debug=""):
         if "model" not in overrides:
             overrides["model"] = TASK2MODEL[task]
 
-    # Model
+
     model = overrides.pop("model", DEFAULT_CFG.model)
     if model is None:
         model = "yolov8n.pt"
         LOGGER.warning(f"WARNING ⚠️ 'model' argument is missing. Using default 'model={model}'.")
     overrides["model"] = model
     stem = Path(model).stem.lower()
-    if "rtdetr" in stem:  # guess architecture
+    if "rtdetr" in stem:
         from ultralytics import RTDETR
 
-        model = RTDETR(model)  # no task argument
+        model = RTDETR(model)
     elif "fastsam" in stem:
         from ultralytics import FastSAM
 
@@ -556,7 +554,7 @@ def entrypoint(debug=""):
     if isinstance(overrides.get("pretrained"), str):
         model.load(overrides["pretrained"])
 
-    # Task Update
+
     if task != model.task:
         if task:
             LOGGER.warning(
@@ -565,7 +563,7 @@ def entrypoint(debug=""):
             )
         task = model.task
 
-    # Mode
+
     if mode in {"predict", "track"} and "source" not in overrides:
         overrides["source"] = DEFAULT_CFG.source or ASSETS
         LOGGER.warning(f"WARNING ⚠️ 'source' argument is missing. Using default 'source={overrides['source']}'.")
@@ -578,16 +576,16 @@ def entrypoint(debug=""):
             overrides["format"] = DEFAULT_CFG.format or "torchscript"
             LOGGER.warning(f"WARNING ⚠️ 'format' argument is missing. Using default 'format={overrides['format']}'.")
 
-    # Run command in python
-    getattr(model, mode)(**overrides)  # default args from model
 
-    # Show help
+    getattr(model, mode)(**overrides)
+
+
     LOGGER.info(f"💡 Learn more at https://docs.ultralytics.com/modes/{mode}")
 
 
-# Special modes --------------------------------------------------------------------------------------------------------
+
 def copy_default_cfg():
-    """Copy and create a new default configuration file with '_copy' appended to its name."""
+
     new_file = Path.cwd() / DEFAULT_CFG_PATH.name.replace(".yaml", "_copy.yaml")
     shutil.copy2(DEFAULT_CFG_PATH, new_file)
     LOGGER.info(
@@ -597,5 +595,5 @@ def copy_default_cfg():
 
 
 if __name__ == "__main__":
-    # Example: entrypoint(debug='yolo predict model=yolov8n.pt')
+
     entrypoint(debug="")
