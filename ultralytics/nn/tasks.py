@@ -93,7 +93,7 @@ from ultralytics.nn.modules import (
     SpaFre,
     SARC,
     FeatureAlign,
-    GPT,
+    PairedAdd,
     downsample,
     DCAF,
     CAM,
@@ -168,23 +168,9 @@ class BaseModel(nn.Module):
         if x.shape[1] != 6:
             raise ValueError(f"PTANet requires 6 RGB/thermal channels, got {x.shape[1]}")
         rgb, ir = x.chunk(2, dim=1)
-        mask = None
-        if not self.training and getattr(self, 'cmbm_enabled', True):
-
-            thermal, red = ir[:, 0].float(), rgb[:, 0].float()
-            index = (thermal - red) / (thermal + red + 1e-6)
-            lo = index.amin(dim=(1, 2), keepdim=True)
-            hi = index.amax(dim=(1, 2), keepdim=True)
-            nii = ((index - lo) / (hi - lo + 1e-6) * 255).detach()
-            thresholds = [cv2.threshold(a.astype(np.uint8), 0, 255,
-                          cv2.THRESH_BINARY + cv2.THRESH_OTSU)[0]
-                          for a in nii.cpu().numpy()]
-            threshold = torch.tensor(thresholds, device=x.device).view(-1, 1, 1)
-            mask = (nii >= threshold).unsqueeze(1).to(x.dtype)
         y, dt = [], []
         current, visible = rgb, True
-        fusion_start = next(m.i for m in self.model if m.type.endswith('.GPT') or
-                            getattr(m, 'is_cross_modal_fusion', False))
+        fusion_start = next(m.i for m in self.model if getattr(m, 'is_cross_modal_fusion', False))
         for m in self.model:
             if m.f == -4:
                 visible = not visible
@@ -196,10 +182,6 @@ class BaseModel(nn.Module):
             else:
                 if m.f != -1:
                     current = y[m.f] if isinstance(m.f, int) else [current if j == -1 else y[j] for j in m.f]
-                if m.type.endswith('.GPT') and mask is not None:
-                    current = list(current)
-                    for j in (2,):
-                        current[j] = current[j] * F.interpolate(mask, size=current[j].shape[-2:], mode='nearest')
                 if profile:
                     self._profile_one_layer(m, current, dt)
                 current = m(current)
@@ -1061,11 +1043,11 @@ def parse_model(d, ch, verbose=True):
             args[0] = d[args[0]]
             c1, c2 = [ch[x] for x in f], (sum([ch[x] for x in f]) if args[0] == 'concat' else ch[f[0]])
             args = [c1, args[0]]
-        elif m in {ADD, FusionModule, CMF, SpaFre, SARC,DCAF,CAM,SAM,SCAM,GPT}:
+        elif m in {ADD, FusionModule, CMF, SpaFre, SARC,DCAF,CAM,SAM,SCAM,PairedAdd}:
 
             c2 = ch[f[0]]
-            if m is GPT and d.get('paper_mode'):
-                args.append(1.0)
+            if m is PairedAdd:
+                args=[args[0],d.get('preserve_init_rng',True)]
 
 
         elif m is S2Attention:

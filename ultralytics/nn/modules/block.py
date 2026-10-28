@@ -1,3 +1,4 @@
+import math
 import scipy
 import torch
 import torch.nn as nn
@@ -66,7 +67,7 @@ __all__ = (
     "SpaFre",
     "SARC",
     "FeatureAlign",
-    "GPT",
+    "PairedAdd",
     "downsample",
     "DCAF",
     "CAM",
@@ -4169,170 +4170,27 @@ class CostomAdaptiveAvgPool2D(nn.Module):
         out_i = torch.cat(out_i, -2)
         return out_i
 
-class GPT(nn.Module):
-
-
-
-
-    def __init__(self, d_model, value_scale=0.5):
-
-
-
-
-
-
-        super(GPT, self).__init__()
-        self.h = 8
-        self.value_scale = value_scale
-
-        self.d_model = d_model
-        self.d_k = d_model // self.h
-        self.d_v = d_model // self.h
-
-        self.ln_input = nn.LayerNorm(d_model)
-        self.ln_output = nn.LayerNorm(d_model)
-
-
-        self.que_proj = nn.Linear(d_model, self.h * self.d_k)
-        self.key_proj = nn.Linear(d_model, self.h * self.d_k)
-        self.val_proj = nn.Linear(d_model, self.h * self.d_v)
-        self.out_proj = nn.Linear(self.h * self.d_v, d_model)
-        self.attn_pdrop = .1
-        self.resid_pdrop = .1
-        self.embd_pdrop = 0.1
-
-
-        self.attn_drop = nn.Dropout(self.attn_pdrop)
-        self.resid_drop = nn.Dropout(self.resid_pdrop)
-
-        self.init_weights()
-
-        self.vert_anchors = 8
-        self.horz_anchors = 8
-
-        self.avgpool = nn.AdaptiveAvgPool2d((self.vert_anchors, self.horz_anchors))
-
-        self.n_embd = d_model
-        self.pos_emb = nn.Parameter(torch.zeros(1, self.vert_anchors * self.horz_anchors, self.n_embd))
-        self.drop = nn.Dropout(self.embd_pdrop)
-
-
-    def init_weights(self):
-        for m in self.modules():
-            if isinstance(m, nn.Conv2d):
-                init.kaiming_normal_(m.weight, mode='fan_out')
-                if m.bias is not None:
-                    init.constant_(m.bias, 0)
-            elif isinstance(m, nn.BatchNorm2d):
-                init.constant_(m.weight, 1)
-                init.constant_(m.bias, 0)
-            elif isinstance(m, nn.Linear):
-                init.normal_(m.weight, std=0.001)
-                if m.bias is not None:
-                    init.constant_(m.bias, 0)
-
-
-    def forward(self, x):
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        if getattr(self, 'ablation_disable_gaffm', False):
-            return x[2] + x[3]
-        rgb_fea = x[0]
-        ir_fea = x[1]
-        assert rgb_fea.shape[0] == ir_fea.shape[0]
-        bs, c, h, w = rgb_fea.shape
-
-
-
-
-
-
-
-        rgb_fea = self.avgpool(rgb_fea)
-        ir_fea = self.avgpool(ir_fea)
-
-
-
-
-
-
-
-        rgb_fea_flat = rgb_fea.view(bs, c, -1)
-        ir_fea_flat = ir_fea.view(bs, c, -1)
-
-        token_embeddings_rgb = rgb_fea_flat.permute(0, 2, 1).contiguous()
-        token_embeddings_ir = ir_fea_flat.permute(0, 2, 1).contiguous()
-
-
-        rgb = self.drop(self.pos_emb + token_embeddings_rgb)
-        ir = self.drop(self.pos_emb + token_embeddings_ir)
-
-        x1 = [rgb, ir]
-
-        b_s, nq = x1[0].shape[:2]
-        nk = x1[1].shape[1]
-        q = self.que_proj(x1[0]).view(b_s, nq, self.h, self.d_k).permute(0, 2, 1, 3)
-        k = self.key_proj(x1[1]).view(b_s, nk, self.h, self.d_k).permute(0, 2, 3, 1)
-        v = self.val_proj((x1[0]+x1[1])*getattr(self, 'value_scale', 0.5)).view(b_s, nk, self.h, self.d_v).permute(0, 2, 1, 3)
-
-
-
-        att = torch.matmul(q, k) / np.sqrt(self.d_k)
-
-
-        att = torch.softmax(att, -1)
-        att = self.attn_drop(att)
-
-
-        out = torch.matmul(att, v).permute(0, 2, 1, 3).contiguous().view(b_s, nq, self.h * self.d_v)
-        out = self.resid_drop(self.out_proj(out))
-        out = out.permute(0, 2, 1).contiguous().view(bs,self.n_embd,self.vert_anchors,self.horz_anchors)
-
-        out = F.interpolate(out, size=([h, w]), mode='bilinear', align_corners=False)
-
-
-        out = (x[2]+x[3])*out
-
-        return out
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+class PairedAdd(nn.Module):
+    is_cross_modal_fusion=True
+
+    def __init__(self,channels,preserve_init_rng=True):
+        super().__init__()
+        self.channels=channels
+        self.preserve_init_rng=preserve_init_rng
+        if preserve_init_rng:
+            weight=torch.empty(channels,channels)
+            bias=torch.empty(channels)
+            for _ in range(4):
+                nn.init.kaiming_uniform_(weight,a=math.sqrt(5))
+                nn.init.uniform_(bias,-1/math.sqrt(channels),1/math.sqrt(channels))
+            for _ in range(4):nn.init.normal_(weight,std=.001)
+
+    def forward(self,x):
+        if self.training and self.preserve_init_rng:
+            batch=x[2].shape[0]
+            for shape in [(batch,64,self.channels),(batch,64,self.channels),(batch,8,64,64),(batch,64,self.channels)]:
+                F.dropout(x[2].new_zeros(shape),p=.1,training=True)
+        return x[2]+x[3]
 
 
 class downsample(nn.Module):

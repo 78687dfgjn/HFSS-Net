@@ -15,6 +15,7 @@ from ultralytics.models.yolo.detect.val import DetectionValidator
 from ultralytics.nn.tasks import DetectionModel
 from ultralytics.utils.checkpoints import atomic_bytes
 from .model import inject
+from .config import ARCHITECTURE
 
 ROOT=Path(__file__).resolve().parents[1]
 
@@ -80,6 +81,8 @@ class ReproTrainer(DetectionTrainer):
         return build_yolo_dataset(self.args,img_path,imgir_path,batch,self.data,mode=mode,rect=False,stride=stride)
     def get_model(self,cfg=None,weights=None,verbose=True):
         cfg=copy.deepcopy(cfg);cfg.pop('release_combination',None)
+        cfg['backbone'][23:26]=copy.deepcopy(ARCHITECTURE['backbone'][23:26])
+        cfg['preserve_init_rng']=True
         model=DetectionModel(cfg,nc=self.data['nc'],verbose=verbose);inject(model)
         if weights is not None:model.load(weights,verbose=verbose)
         return model

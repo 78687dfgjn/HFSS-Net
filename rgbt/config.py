@@ -1,6 +1,7 @@
 import yaml
 ARCHITECTURE = yaml.safe_load(r"""nc: 3
 paper_mode: true
+preserve_init_rng: true
 scale: n
 scales:
   n: [0.33, 0.25, 1024]
@@ -28,9 +29,9 @@ backbone:
   - [-1, 1, "SPPF", [1024, 5]]
   - [-4, 3, "C2f", [1024, true]]
   - [-1, 1, "SPPF", [1024, 5]]
-  - [[3, 7, 9, 11], 1, "GPT", [64]]
-  - [[10, 12, 14, 16], 1, "GPT", [128]]
-  - [[15, 17, 20, 22], 1, "GPT", [256]]
+  - [[3, 7, 9, 11], 1, "PairedAdd", [64]]
+  - [[10, 12, 14, 16], 1, "PairedAdd", [128]]
+  - [[15, 17, 20, 22], 1, "PairedAdd", [256]]
 head:
   - [-1, 1, "nn.Upsample", [null, 2, "nearest"]]
   - [[-1, 24], 1, "Concat", [1]]
